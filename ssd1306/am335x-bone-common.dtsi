@@ -226,16 +226,6 @@
 		reg = <0x24>;
 	};
 
-	baseboard_eeprom: baseboard_eeprom@50 {
-		compatible = "at,24c256";
-		reg = <0x50>;
-
-		#address-cells = <1>;
-		#size-cells = <1>;
-		baseboard_data: baseboard_data@0 {
-			reg = <0 0x100>;
-		};
-	};
 };
 
 &i2c2 {
@@ -249,8 +239,8 @@
 		compatible = "DAndy,lcd_ssd1306";
 		reg = <0x3c>;
 		status = "okay";
-	};
 
+<<<<<<< HEAD
 	cape_eeprom0: cape_eeprom0@54 {
 		compatible = "at,24c256";
 		reg = <0x54>;
@@ -290,6 +280,10 @@
 			reg = <0 0x100>;
 		};
 	};
+||||||| parent of a2bfed6... ssd1306: added I2C communications to LCD
+=======
+	};
+>>>>>>> a2bfed6... ssd1306: added I2C communications to LCD
 };
 
 
