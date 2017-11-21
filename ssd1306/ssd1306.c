@@ -1,4 +1,3 @@
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -14,14 +13,14 @@
 #include <linux/uaccess.h>
 
 #define DEVICE_NAME	"lcd_ssd1306"
-#define CLASS_NAME	"oled_display" 
+#define CLASS_NAME	"oled_display"
 #define BUS_NAME	"i2c_1"
 
 #define LCD_WIDTH		128
-#define LCD_HEIGHT		64	
+#define LCD_HEIGHT		64
 
-#define WRITECOMMAND	0x00 // 
-#define WRITEDATA		0x40 // 
+#define WRITECOMMAND	0x00
+#define WRITEDATA		0x40
 
 
 
@@ -62,7 +61,7 @@ static struct device *dev;
 
 
 struct ssd1306_data {
-    struct i2c_client *client;
+	struct i2c_client *client;
 	struct fb_info *info;
 	struct work_struct display_update_ws;
 	u32 height;
@@ -73,7 +72,7 @@ struct ssd1306_data {
 
 
 static struct fb_fix_screeninfo ssd1307fb_fix = {
-	.id     	= "Solomon SSD1307",
+	.id		= "Solomon SSD1307",
 	.type       = FB_TYPE_PACKED_PIXELS,
 	.visual     = FB_VISUAL_MONO10,
 	.xpanstep   = 0,
@@ -88,11 +87,9 @@ static struct fb_var_screeninfo ssd1307fb_var = {
 };
 
 
-typedef struct ssd1306_data_array
-{
+typedef struct ssd1306_data_array {
 	u8      type;
-    u8      data[LCD_WIDTH * LCD_HEIGHT / 8];
-
+	u8      data[LCD_WIDTH * LCD_HEIGHT / 8];
 } ssd1306_data_array;
 
 ssd1306_data_array dataArray;
@@ -102,15 +99,15 @@ u8 *ssd1306_Buffer = &dataArray.data[0];
 static u8 *lcd_vmem;
 
 
-int ssd1306_UpdateScreen(struct ssd1306_data *drv_data);
-int ssd1306_ON(struct ssd1306_data *drv_data);
-int ssd1306_OFF(struct ssd1306_data *drv_data);
+static int ssd1306_UpdateScreen(struct ssd1306_data *drv_data);
+static int ssd1306_ON(struct ssd1306_data *drv_data);
+static int ssd1306_OFF(struct ssd1306_data *drv_data);
 
 /* Init sequence taken from the Adafruit SSD1306 Arduino library */
-static void ssd1306_init_lcd(struct i2c_client *drv_client) {
-
-    dev_info(dev, "ssd1306: Device init \n");
-    /* Init LCD */    
+static void ssd1306_init_lcd(struct i2c_client *drv_client)
+{
+	dev_info(dev, "ssd1306: Device init\n");
+	/* Init LCD */
 	SSD1306_SEND_COMMAND(drv_client, DISPLAY_OFF);
 
 	SSD1306_SEND_COMMAND(drv_client, MEMORY_MODE);
@@ -127,19 +124,25 @@ static void ssd1306_init_lcd(struct i2c_client *drv_client) {
 
 	SSD1306_SEND_COMMAND(drv_client, COM_SCAN_DEC);
 
+	/* Max contrast */
 	SSD1306_SEND_COMMAND(drv_client, SET_CONTRAST);
-	SSD1306_SEND_COMMAND(drv_client, 0xFF); /* Max contrast */
+	SSD1306_SEND_COMMAND(drv_client, 0xFF);
 
-	SSD1306_SEND_COMMAND(drv_client, 0xA1); /* set segment re-map 0 to 127 */
+	/* set segment re-map 0 to 127 */
+	SSD1306_SEND_COMMAND(drv_client, 0xA1);
 	SSD1306_SEND_COMMAND(drv_client, SET_NORMAL_DISPLAY);
-	SSD1306_SEND_COMMAND(drv_client, 0xA8); /* set multiplex ratio(1 to 64) */
+	/* set multiplex ratio(1 to 64) */
+	SSD1306_SEND_COMMAND(drv_client, 0xA8);
 	SSD1306_SEND_COMMAND(drv_client, (LCD_HEIGHT - 1));
-	SSD1306_SEND_COMMAND(drv_client, 0xA4); /* 0xA4 => follows RAM content */
+	/* 0xA4 => follows RAM content */
+	SSD1306_SEND_COMMAND(drv_client, 0xA4);
 	SSD1306_SEND_COMMAND(drv_client, SET_DISPLAY_OFFSET);
-	SSD1306_SEND_COMMAND(drv_client, 0x00); /* no offset */
+	/* no offset */
+	SSD1306_SEND_COMMAND(drv_client, 0x00);
 
 	SSD1306_SEND_COMMAND(drv_client, SET_DISPLAY_CLOCK_DIV);
-	SSD1306_SEND_COMMAND(drv_client, 0x80); /* set divide ratio */
+	/* set divide ratio */
+	SSD1306_SEND_COMMAND(drv_client, 0x80);
 
 	SSD1306_SEND_COMMAND(drv_client, SET_PRECHARGE);
 	SSD1306_SEND_COMMAND(drv_client, 0x22);
@@ -148,8 +151,8 @@ static void ssd1306_init_lcd(struct i2c_client *drv_client) {
 	SSD1306_SEND_COMMAND(drv_client, 0x12);
 
 	SSD1306_SEND_COMMAND(drv_client, SET_VCOM_DETECT);
-	SSD1306_SEND_COMMAND(drv_client, 0x20); /* 0x20, 0.77x Vcc */
-    
+	SSD1306_SEND_COMMAND(drv_client, 0x20);
+
 
 	SSD1306_SEND_COMMAND(drv_client, 0x8D);
 	SSD1306_SEND_COMMAND(drv_client, 0x14);
@@ -159,26 +162,28 @@ static void ssd1306_init_lcd(struct i2c_client *drv_client) {
 
 
 
-int ssd1306_UpdateScreen(struct ssd1306_data *drv_data) {
-
-    struct i2c_client *drv_client;
+static int ssd1306_UpdateScreen(struct ssd1306_data *drv_data)
+{
+	struct i2c_client *drv_client;
 	int ret;
 
-    drv_client = drv_data->client;
-    
-    dataArray.type = 0x40;
-	ret = i2c_master_send(drv_client, (u8 *) &dataArray, sizeof(ssd1306_data_array));
-	if (unlikely(ret < 0))
-	{
+	drv_client = drv_data->client;
+
+	dataArray.type = 0x40;
+	ret = i2c_master_send(drv_client, (u8 *) &dataArray,
+		sizeof(ssd1306_data_array));
+
+	if (unlikely(ret < 0)) {
 		printk(KERN_ERR "i2c_master_send() has returned ERROR %d\n", ret);
 		return ret;
-	}    
+	}
 
-    return 0;
+	return 0;
 }
 
 
-int ssd1306_ON(struct ssd1306_data *drv_data) {
+static int ssd1306_ON(struct ssd1306_data *drv_data)
+{
 	struct i2c_client *drv_client;
 
 	drv_client = drv_data->client;
@@ -190,7 +195,8 @@ int ssd1306_ON(struct ssd1306_data *drv_data) {
 }
 
 
-int ssd1306_OFF(struct ssd1306_data *drv_data) {
+static int ssd1306_OFF(struct ssd1306_data *drv_data)
+{
 	struct i2c_client *drv_client;
 
 	drv_client = drv_data->client;
@@ -209,16 +215,17 @@ static void ssd1307fb_update_display(struct ssd1306_data *lcd)
 	u8 *vmem = lcd->info->screen_base;
 	int i, j, k;
 
-
 	for (i = 0; i < (lcd->height / 8); i++) {
 		for (j = 0; j < lcd->width; j++) {
 			u32 array_idx = i * lcd->width + j;
+
 			ssd1306_Buffer[array_idx] = 0;
 			for (k = 0; k < 8; k++) {
 				u32 page_length = lcd->width * i;
 				u32 index = page_length + (lcd->width * k + j) / 8;
 				u8 byte = *(vmem + index);
 				u8 bit = byte & (1 << (j % 8));
+
 				bit = bit >> (j % 8);
 				ssd1306_Buffer[array_idx] |= bit << k;
 			}
@@ -243,7 +250,7 @@ static void update_display_work(struct work_struct *work)
 static ssize_t ssd1307fb_write(struct fb_info *info, const char __user *buf,
 		size_t count, loff_t *ppos)
 {
-    struct ssd1306_data *lcd = info->par;
+	struct ssd1306_data *lcd = info->par;
 	unsigned long total_size;
 	unsigned long p = *ppos;
 	u8 __iomem *dst;
@@ -273,31 +280,37 @@ static ssize_t ssd1307fb_write(struct fb_info *info, const char __user *buf,
 
 static int ssd1307fb_blank(int blank_mode, struct fb_info *info)
 {
-    struct ssd1306_data *lcd = info->par;
+	struct ssd1306_data *lcd = info->par;
 
-    if (blank_mode != FB_BLANK_UNBLANK)
-    	return ssd1306_OFF(lcd);
-    else
-    	return ssd1306_ON(lcd);
+	if (blank_mode != FB_BLANK_UNBLANK)
+		return ssd1306_OFF(lcd);
+	else
+		return ssd1306_ON(lcd);
 }
 
-static void ssd1307fb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
+static void ssd1307fb_fillrect(struct fb_info *info,
+	const struct fb_fillrect *rect)
 {
-    struct ssd1306_data *lcd = info->par;
+	struct ssd1306_data *lcd = info->par;
+
 	sys_fillrect(info, rect);
 	schedule_work(&lcd->display_update_ws);
 }
 
-static void ssd1307fb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
+static void ssd1307fb_copyarea(struct fb_info *info,
+	const struct fb_copyarea *area)
 {
-    struct ssd1306_data *lcd = info->par;
+	struct ssd1306_data *lcd = info->par;
+
 	sys_copyarea(info, area);
 	schedule_work(&lcd->display_update_ws);
 }
 
-static void ssd1307fb_imageblit(struct fb_info *info, const struct fb_image *image)
+static void ssd1307fb_imageblit(struct fb_info *info,
+	const struct fb_image *image)
 {
-    struct ssd1306_data *lcd = info->par;
+	struct ssd1306_data *lcd = info->par;
+
 	sys_imageblit(info, image);
 	schedule_work(&lcd->display_update_ws);
 }
@@ -343,17 +356,16 @@ static int ssd1306_probe(struct i2c_client *drv_client,
 
 	adapter = drv_client->adapter;
 
-	if (!adapter)
-	{
+	if (!adapter) {
 		dev_err(dev, "adapter indentification error\n");
 		return -ENODEV;
 	}
 
-	dev_info(dev, "I2C client address %d \n", drv_client->addr);
+	dev_info(dev, "I2C client address %d\n", drv_client->addr);
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-			dev_err(dev, "operation not supported\n");
-			return -ENODEV;
+		dev_err(dev, "operation not supported\n");
+		return -ENODEV;
 	}
 
 	lcd->info = info;
@@ -362,15 +374,15 @@ static int ssd1306_probe(struct i2c_client *drv_client,
 	lcd->height = LCD_HEIGHT;
 
 	vmem_size = lcd->width * lcd->height / 8;
-	
-    lcd_vmem = devm_kzalloc(&drv_client->dev, vmem_size, GFP_KERNEL);
-	
-    if (!lcd_vmem) {
+
+	lcd_vmem = devm_kzalloc(&drv_client->dev, vmem_size, GFP_KERNEL);
+
+	if (!lcd_vmem) {
 		dev_err(dev, "Couldn't allocate graphical memory.\n");
-		return -ENOMEM;        
+		return -ENOMEM;
 	}
-	
-	vmem = lcd_vmem;//&ssd1306_Buffer[0];
+
+	vmem = lcd_vmem;
 
 
 	info->fbops     = &ssd1307fb_ops;
@@ -405,11 +417,11 @@ static int ssd1306_probe(struct i2c_client *drv_client,
 	if (ret) {
 		dev_err(dev, "Couldn't register the framebuffer\n");
 		return ret;
-		//goto panel_init_error;
-	}    
+	}
 
 	dev_info(dev, "ssd1306 driver successfully loaded\n");
-	dev_info(dev, "DAndy fb%d: %s device registered, using %d bytes of video memory\n", info->node, info->fix.id, vmem_size);
+	dev_info(dev, "DAndy fb%d: %s device registered, using %d bytes of
+		video memory\n", info->node, info->fix.id, vmem_size);
 
 	return 0;
 }
@@ -419,7 +431,7 @@ static int ssd1306_probe(struct i2c_client *drv_client,
 static int ssd1306_remove(struct i2c_client *drv_client)
 {
 	struct fb_info *info = i2c_get_clientdata(drv_client);
-    struct ssd1306_data *lcd = info->par;
+	struct ssd1306_data *lcd = info->par;
 
 	cancel_work_sync(&lcd->display_update_ws);
 
@@ -450,7 +462,7 @@ static struct i2c_driver ssd1306_driver = {
 		.of_match_table = ssd1306_match,
 	},
 	.probe		= ssd1306_probe,
-	.remove 	= ssd1306_remove,
+	.remove		= ssd1306_remove,
 	.id_table	= ssd1306_id,
 };
 module_i2c_driver(ssd1306_driver);
