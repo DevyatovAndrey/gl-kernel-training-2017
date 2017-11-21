@@ -1,10 +1,14 @@
 
+CROSS_COMPILE ?= arm-linux-gnueabihf-
+CC = $(CROSS_COMPILE)gcc
+CFLAGS = -Wall
 
+.PHONY: all clean
 
+all: analog_clock
 
-all:
-	$(CROSS_COMPILE)gcc -Wall -o analog_clock analog_clock.c
+analog_clock: analog_clock.c
+	$(CC) $(CFLAGS) $^ -o $@
 
 clean:
-	rm fb_user
-
+	rm analog_clock

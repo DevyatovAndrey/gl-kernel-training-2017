@@ -270,7 +270,7 @@ int fb_init(char *device)
 
 	/* get current settings (which we have to restore) */
 	fb = open(device, O_RDWR);
-	if (fb == -1 {
+	if (fb == -1){
 		fprintf(stderr, "Open %s error\n", device);
 		return 0;
 	}
