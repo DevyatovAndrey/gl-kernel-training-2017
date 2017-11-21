@@ -2,8 +2,9 @@ CONFIG_MODULE_SIG=n
 
 obj-m := ssd1306.o
 
-KDIR ?= ${HOME}/BBB/bb_kernel/
-#KDIR ?= ~/BBB/KERNEL/
+CROSS_COMPILE ?= arm-linux-gnueabihf-
+
+KDIR ?= ${BBB_KERNEL}
 
 PWD := $(shell pwd)
 
